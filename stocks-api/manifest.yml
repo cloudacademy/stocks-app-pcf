@@ -1,0 +1,15 @@
+---
+applications:
+- name: stocks-api
+  buildpacks:
+  - java_buildpack
+  path: target/stocks-api*.jar
+  instances: 1
+  memory: 1G
+  routes:
+  - route: stocks-api.cloudacademy.internal
+  env:
+    JAVA_OPTS: '-Xss512k'
+    DB_CONNSTR: 'jdbc:mysql://db.cloudacademy.internal:3306/cloudacademy'
+    DB_USER: 'root'
+    DB_PASSWORD: 'followthewhiterabbit'

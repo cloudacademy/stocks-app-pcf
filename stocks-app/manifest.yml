@@ -1,0 +1,14 @@
+---
+applications:
+- name: stocks-app
+  buildpacks:
+  - https://github.com/cloudfoundry/staticfile-buildpack.git
+  path: build/
+  instances: 1
+  memory: 256M
+  routes:
+  - route: stocks-app.cloudacademy.io
+  env:
+    REACT_APP_APIHOSTPORT: 'stocks-app.cloudacademy.io'
+    NGINX_APP_APIHOSTPORT: 'stocks-api.cloudacademy.internal'
+    NGINX_DNS_RESOLVER: '10.120.2.12'
