@@ -23,7 +23,7 @@ jobs:
 
       - name: Package Source
         run: |
-          tar -czf pcf-app-example-${{ env.RELEASE_VERSION }}.tar.gz .
+          tar -czf pcf-app-example-${{ env.RELEASE_VERSION }}.tar.gz stocks-api stocks-app
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v2
