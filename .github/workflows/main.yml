@@ -23,7 +23,7 @@ jobs:
 
       - name: Package Source
         run: |
-          tar -czf pcf-trading-stocks-app-${{ env.RELEASE_VERSION }}.tar.gz stocks-api stocks-app
+          tar -czf pcf-trading-stocks-app-${{ env.RELEASE_VERSION }}.tar.gz stocks-api stocks-app db migration
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v2
