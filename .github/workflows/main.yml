@@ -23,19 +23,20 @@ jobs:
 
       - name: Package Source
         run: |
-          tar -czf pcf-app-example-${{ env.RELEASE_VERSION }}.tar.gz stocks-api stocks-app
+          tar -czf pcf-trading-stocks-app-${{ env.RELEASE_VERSION }}.tar.gz stocks-api stocks-app
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v2
         with:
-          name: pcf-app-example-${{ env.RELEASE_VERSION }}
-          path: pcf-app-example-${{ env.RELEASE_VERSION }}.tar.gz
+          name: pcf-trading-stocks-app-${{ env.RELEASE_VERSION }}
+          path: pcf-trading-stocks-app-${{ env.RELEASE_VERSION }}.tar.gz
 
       - name: Make Release
         uses: softprops/action-gh-release@v0.1.5
         if: startsWith(github.ref, 'refs/tags/')
         with:
+          name: pcf-trading-stocks-app-${{ env.RELEASE_VERSION }}
           files: |
-            pcf-app-example-${{ env.RELEASE_VERSION }}.tar.gz
+            pcf-trading-stocks-app-${{ env.RELEASE_VERSION }}.tar.gz
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
