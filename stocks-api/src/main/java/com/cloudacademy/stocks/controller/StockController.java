@@ -1,7 +1,5 @@
 package com.cloudacademy.stocks.controller;
 
-import lombok.AllArgsConstructor;
-
 import org.apache.commons.csv.CSVPrinter;
 import org.apache.commons.csv.CSVFormat;
 
@@ -16,6 +14,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.boot.info.BuildProperties;
 
 import java.util.List;
 import java.util.ArrayList;
@@ -27,36 +26,52 @@ import java.io.PrintWriter;
 import java.text.SimpleDateFormat;
 import java.text.DecimalFormat;
 
-import com.cloudacademy.stocks.entity.Stock;
+import com.cloudacademy.stocks.dto.StockRecord;
 import com.cloudacademy.stocks.service.StockService;
 
 @RestController
-@AllArgsConstructor
 @RequestMapping("api/stocks")
 public class StockController {
 
-    private StockService stockService;
+    private final StockService stockService;
+    private final BuildProperties buildProperties;
+
+    public StockController(StockService stockService, BuildProperties buildProperties) {
+        this.stockService = stockService;
+        this.buildProperties = buildProperties;
+    }
 
     // build create Stock REST API
     @PostMapping
-    public ResponseEntity<Stock> createStock(@RequestBody Stock stock) {
-        var savedStock = stockService.createStock(stock);
-        return new ResponseEntity<>(savedStock, HttpStatus.CREATED);
+    public ResponseEntity<StockRecord> createStock(@RequestBody StockRecord stockRecord) {
+        var savedStock = stockService.createStock(stockRecord.toEntity());
+        return new ResponseEntity<>(StockRecord.fromEntity(savedStock), HttpStatus.CREATED);
     }
 
     // http://localhost:8080/api/stocks
     @CrossOrigin(origins = "*")
     @GetMapping
-    public ResponseEntity<List<Stock>> getAllStocks() {
-        var stocks = stockService.getAllStocks();
+    public ResponseEntity<List<StockRecord>> getAllStocks() {
+        var stocks = stockService.getAllStocks()
+                .stream()
+                .map(StockRecord::fromEntity)
+                .toList();
         return new ResponseEntity<>(stocks, HttpStatus.OK);
     }
 
     // http://localhost:8080/api/stocks/ok
     @CrossOrigin(origins = "*")
-    @GetMapping(value = "/ok", produces="text/plain")
+    @GetMapping(value = "/ok", produces = "text/plain")
     public ResponseEntity<String> getOk() {
         return new ResponseEntity<>("OK", HttpStatus.OK);
+    }
+
+    // http://localhost:8080/api/version
+    @GetMapping(value = "/version", produces = "text/plain")
+    public ResponseEntity<String> getVersion() {
+        return ResponseEntity
+                .status(HttpStatus.OK)
+                .body(buildProperties.getVersion());
     }
 
     // http://localhost:8080/api/stocks/csv
@@ -70,20 +85,22 @@ public class StockController {
 
         // replace this with your data retrieving logic
         List<List<String>> csvBody = new ArrayList<>();
-        List<Stock> stocks = stockService.getAllStocks();
+        var stocks = stockService.getAllStocks()
+                .stream()
+                .map(StockRecord::fromEntity)
+                .toList();
 
         var dateFormatter = new SimpleDateFormat("yyyy-MM-dd");
         var numFormatter = new DecimalFormat("##.000000");
 
         for (var stock : stocks) {
             csvBody.add(Arrays.asList(
-                dateFormatter.format(stock.getDate()),
-                numFormatter.format(stock.getOpen()),
-                numFormatter.format(stock.getHigh()),
-                numFormatter.format(stock.getLow()),
-                numFormatter.format(stock.getClose()),
-                stock.getVolume().toString()
-            ));
+                    dateFormatter.format(stock.date()),
+                    numFormatter.format(stock.open()),
+                    numFormatter.format(stock.high()),
+                    numFormatter.format(stock.low()),
+                    numFormatter.format(stock.close()),
+                    stock.volume().toString()));
         }
 
         ByteArrayInputStream byteArrayOutputStream;
@@ -93,9 +110,7 @@ public class StockController {
 
                 var csvPrinter = new CSVPrinter(
                         new PrintWriter(out),
-                        CSVFormat.DEFAULT.withHeader(csvHeader)
-                );
-        ) {
+                        CSVFormat.DEFAULT.withHeader(csvHeader));) {
             for (var record : csvBody) {
                 csvPrinter.printRecord(record);
             }
@@ -119,7 +134,6 @@ public class StockController {
         return new ResponseEntity<>(
                 fileInputStream,
                 headers,
-                HttpStatus.OK
-        );
+                HttpStatus.OK);
     }
 }

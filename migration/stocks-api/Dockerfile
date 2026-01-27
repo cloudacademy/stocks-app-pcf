@@ -1,14 +1,13 @@
-FROM openjdk:17-bullseye AS builder
+FROM amazoncorretto:25 AS builder
 
-RUN apt-get update && \
-    apt-get install -y build-essential maven tree
+RUN yum install -y maven tree && yum clean all
 
 COPY src ./src
 COPY pom.xml .
 RUN mvn -B clean package spring-boot:repackage
 RUN tree
 
-FROM amazoncorretto:17-alpine3.17
+FROM amazoncorretto:25-alpine
 
 RUN mkdir -p /cloudacademy/app
 WORKDIR /cloudacademy/app
