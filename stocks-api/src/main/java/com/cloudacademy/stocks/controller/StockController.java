@@ -3,17 +3,10 @@ package com.cloudacademy.stocks.controller;
 import org.apache.commons.csv.CSVPrinter;
 import org.apache.commons.csv.CSVFormat;
 
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
+import org.springframework.http.*;
 import org.springframework.core.io.Resource;
-import org.springframework.http.HttpHeaders;
 import org.springframework.core.io.InputStreamResource;
-import org.springframework.web.bind.annotation.CrossOrigin;
-import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.*;
 import org.springframework.boot.info.BuildProperties;
 
 import java.util.List;
@@ -26,8 +19,8 @@ import java.io.PrintWriter;
 import java.text.SimpleDateFormat;
 import java.text.DecimalFormat;
 
-import com.cloudacademy.stocks.dto.StockRecord;
 import com.cloudacademy.stocks.service.StockService;
+import com.cloudacademy.stocks.model.StockDTO;
 
 @RestController
 @RequestMapping("api/stocks")
@@ -41,22 +34,12 @@ public class StockController {
         this.buildProperties = buildProperties;
     }
 
-    // build create Stock REST API
-    @PostMapping
-    public ResponseEntity<StockRecord> createStock(@RequestBody StockRecord stockRecord) {
-        var savedStock = stockService.createStock(stockRecord.toEntity());
-        return new ResponseEntity<>(StockRecord.fromEntity(savedStock), HttpStatus.CREATED);
-    }
-
-    // http://localhost:8080/api/stocks
-    @CrossOrigin(origins = "*")
-    @GetMapping
-    public ResponseEntity<List<StockRecord>> getAllStocks() {
-        var stocks = stockService.getAllStocks()
-                .stream()
-                .map(StockRecord::fromEntity)
-                .toList();
-        return new ResponseEntity<>(stocks, HttpStatus.OK);
+    // http://localhost:8080/api/stocks/version
+    @GetMapping(value = "/version", produces = "text/plain")
+    public ResponseEntity<String> getVersion() {
+        return ResponseEntity
+                .status(HttpStatus.OK)
+                .body(buildProperties.getVersion());
     }
 
     // http://localhost:8080/api/stocks/ok
@@ -66,12 +49,18 @@ public class StockController {
         return new ResponseEntity<>("OK", HttpStatus.OK);
     }
 
-    // http://localhost:8080/api/version
-    @GetMapping(value = "/version", produces = "text/plain")
-    public ResponseEntity<String> getVersion() {
-        return ResponseEntity
-                .status(HttpStatus.OK)
-                .body(buildProperties.getVersion());
+    // http://localhost:8080/api/stocks
+    @CrossOrigin(origins = "*")
+    @GetMapping
+    public List<StockDTO> getAllStocks() {
+        return stockService.getAllStocks();
+    }
+
+    // http://localhost:8080/api/stocks
+    @CrossOrigin(origins = "*")
+    @PostMapping
+    public StockDTO createEmployee(@RequestBody StockDTO stockDTO) {
+        return stockService.saveStock(stockDTO);
     }
 
     // http://localhost:8080/api/stocks/csv
@@ -79,21 +68,18 @@ public class StockController {
     @GetMapping(value = "/csv", produces = "text/csv")
     public ResponseEntity<Resource> exportCSV() {
         // replace this with your header (if required)
-        String[] csvHeader = {
+        var csvHeader = new String[] {
                 "date", "open", "high", "low", "close", "volume"
         };
 
         // replace this with your data retrieving logic
-        List<List<String>> csvBody = new ArrayList<>();
-        var stocks = stockService.getAllStocks()
-                .stream()
-                .map(StockRecord::fromEntity)
-                .toList();
+        var csvBody = new ArrayList<List<String>>();
+        var stocks = stockService.getAllStocks();
 
         var dateFormatter = new SimpleDateFormat("yyyy-MM-dd");
         var numFormatter = new DecimalFormat("##.000000");
 
-        for (var stock : stocks) {
+        stocks.forEach(stock -> {
             csvBody.add(Arrays.asList(
                     dateFormatter.format(stock.date()),
                     numFormatter.format(stock.open()),
@@ -101,39 +87,37 @@ public class StockController {
                     numFormatter.format(stock.low()),
                     numFormatter.format(stock.close()),
                     stock.volume().toString()));
-        }
+        });
 
-        ByteArrayInputStream byteArrayOutputStream;
+        var csvFormat = CSVFormat.DEFAULT.builder()
+                .setHeader(csvHeader)
+                .build();
 
         try (
                 var out = new ByteArrayOutputStream();
+                var printer = new CSVPrinter(new PrintWriter(out), csvFormat)) {
+            csvBody.forEach(row -> {
+                try {
+                    printer.printRecord(row);
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            });
 
-                var csvPrinter = new CSVPrinter(
-                        new PrintWriter(out),
-                        CSVFormat.DEFAULT.withHeader(csvHeader));) {
-            for (var record : csvBody) {
-                csvPrinter.printRecord(record);
-            }
+            printer.flush();
 
-            // writing the underlying stream
-            csvPrinter.flush();
+            var stream = new ByteArrayInputStream(out.toByteArray());
 
-            byteArrayOutputStream = new ByteArrayInputStream(out.toByteArray());
+            var headers = new HttpHeaders();
+            headers.set(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=stocks.csv");
+            headers.set(HttpHeaders.CONTENT_TYPE, "text/csv");
+
+            return new ResponseEntity<>(
+                    new InputStreamResource(stream),
+                    headers,
+                    HttpStatus.OK);
         } catch (IOException e) {
-            throw new RuntimeException(e.getMessage());
+            return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
         }
-
-        var fileInputStream = new InputStreamResource(byteArrayOutputStream);
-
-        var csvFileName = "stocks.csv";
-
-        HttpHeaders headers = new HttpHeaders();
-        headers.set(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + csvFileName);
-        headers.set(HttpHeaders.CONTENT_TYPE, "text/csv");
-
-        return new ResponseEntity<>(
-                fileInputStream,
-                headers,
-                HttpStatus.OK);
     }
 }
